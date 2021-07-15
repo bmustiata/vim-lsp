@@ -6,16 +6,15 @@
 
 set nocompatible hidden laststatus=2
 
-if !filereadable('/tmp/plug.vim')
-  silent !curl --insecure -fLo /tmp/plug.vim
+if !filereadable(expand('~/plug.vim'))
+  silent !curl -fLo ~/plug.vim
     \ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
 endif
 
-source /tmp/plug.vim
+source ~/plug.vim
 
-call plug#begin('/tmp/plugged')
+call plug#begin('~/.vim.plugged')
 Plug 'prabirshrestha/asyncomplete.vim'
-Plug 'prabirshrestha/async.vim'
 Plug 'prabirshrestha/vim-lsp'
 Plug 'prabirshrestha/asyncomplete-lsp.vim'
 call plug#end()
@@ -31,6 +30,6 @@ if executable('pyls')
     au User lsp_setup call lsp#register_server({
         \ 'name': 'pyls',
         \ 'cmd': {server_info->['pyls']},
-        \ 'whitelist': ['python'],
+        \ 'allowlist': ['python'],
         \ })
 endif

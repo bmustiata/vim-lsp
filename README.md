@@ -4,12 +4,16 @@ Async [Language Server Protocol](https://github.com/Microsoft/language-server-pr
 
 # Installing
 
+Install [vim-plug](https://github.com/junegunn/vim-plug) and then:
+
 ```viml
-Plug 'prabirshrestha/async.vim'
 Plug 'prabirshrestha/vim-lsp'
 ```
 
-_Note: [async.vim](https://github.com/prabirshrestha/async.vim) is required and is used to normalize jobs between vim8 and neovim._
+__Performance__
+
+Certain bottlenecks in Vim script have been implemented in lua. If you would like to take advantage of these performance gains
+use vim compiled with lua or neovim v0.4.0+
 
 ## Registering servers
 
@@ -20,15 +24,30 @@ if executable('pyls')
     au User lsp_setup call lsp#register_server({
         \ 'name': 'pyls',
         \ 'cmd': {server_info->['pyls']},
-        \ 'whitelist': ['python'],
+        \ 'allowlist': ['python'],
         \ })
 endif
 
 function! s:on_lsp_buffer_enabled() abort
     setlocal omnifunc=lsp#complete
     setlocal signcolumn=yes
+    if exists('+tagfunc') | setlocal tagfunc=lsp#tagfunc | endif
     nmap <buffer> gd <plug>(lsp-definition)
-    nmap <buffer> <f2> <plug>(lsp-rename)
+    nmap <buffer> gs <plug>(lsp-document-symbol-search)
+    nmap <buffer> gS <plug>(lsp-workspace-symbol-search)
+    nmap <buffer> gr <plug>(lsp-references)
+    nmap <buffer> gi <plug>(lsp-implementation)
+    nmap <buffer> gt <plug>(lsp-type-definition)
+    nmap <buffer> <leader>rn <plug>(lsp-rename)
+    nmap <buffer> [g <plug>(lsp-previous-diagnostic)
+    nmap <buffer> ]g <plug>(lsp-next-diagnostic)
+    nmap <buffer> K <plug>(lsp-hover)
+    inoremap <buffer> <expr><c-f> lsp#scroll(+4)
+    inoremap <buffer> <expr><c-d> lsp#scroll(-4)
+
+    let g:lsp_format_sync_timeout = 1000
+    autocmd! BufWritePre *.rs,*.go call execute('LspDocumentFormatSync')
+    
     " refer to doc to add more commands
 endfunction
 
@@ -42,7 +61,6 @@ augroup END
 Refer to [vim-lsp-settings](https://github.com/mattn/vim-lsp-settings) on how to easily setup language servers using vim-lsp automatically.
 
 ```viml
-Plug 'prabirshrestha/async.vim'
 Plug 'prabirshrestha/vim-lsp'
 Plug 'mattn/vim-lsp-settings'
 ```
@@ -53,9 +71,10 @@ Refer to docs on configuring omnifunc or [asyncomplete.vim](https://github.com/p
 
 ## Snippets
 vim-lsp does not support snippets by default. If you want snippet integration, you will first have to install a third-party snippet plugin and a plugin that integrates it in vim-lsp.
-At the moment, you have two options:
-1. [UltiSnips](https://github.com/SirVer/ultisnips) together with [vim-lsp-ultisnips](https://github.com/thomasfaingnaert/vim-lsp-ultisnips)
-2. [neosnippet.vim](https://github.com/Shougo/neosnippet.vim) together with [vim-lsp-neosnippet](https://github.com/thomasfaingnaert/vim-lsp-neosnippet)
+At the moment, you have following options:
+1. [vim-vsnip](https://github.com/hrsh7th/vim-vsnip) together with [vim-vsnip-integ](https://github.com/hrsh7th/vim-vsnip-integ)
+2. [UltiSnips](https://github.com/SirVer/ultisnips) together with [vim-lsp-ultisnips](https://github.com/thomasfaingnaert/vim-lsp-ultisnips)
+3. [neosnippet.vim](https://github.com/Shougo/neosnippet.vim) together with [vim-lsp-neosnippet](https://github.com/thomasfaingnaert/vim-lsp-neosnippet)
 
 For more information, refer to the readme and documentation of the respective plugins.
 
@@ -91,7 +110,11 @@ Refer to `:h vim-lsp-semantic` for more info.
 
 | Command | Description|
 |--|--|
+|`:LspAddTreeCallHierarchyIncoming`| Find incoming call hierarchy for the symbol under cursor, but add the result to the current list |
+|`:LspCallHierarchyIncoming`| Find incoming call hierarchy for the symbol under cursor |
+|`:LspCallHierarchyOutgoing`| Find outgoing call hierarchy for the symbol under cursor |
 |`:LspCodeAction`| Gets a list of possible commands that can be applied to a file so it can be fixed (quick fix) |
+|`:LspCodeLens`| Gets a list of possible commands that can be executed on the current document |
 |`:LspDeclaration`| Go to the declaration of the word under the cursor, and open in the current window |
 |`:LspDefinition`| Go to the definition of the word under the cursor, and open in the current window |
 |`:LspDocumentDiagnostics`| Get current document diagnostics information |
@@ -131,62 +154,16 @@ preferred to turn them off and use other plugins instead (like
 let g:lsp_diagnostics_enabled = 0         " disable diagnostics support
 ```
 
-#### Signs
+### Highlight references
 
-```viml
-let g:lsp_signs_enabled = 1         " enable signs
-let g:lsp_diagnostics_echo_cursor = 1 " enable echo under cursor when in normal mode
-```
-
-Four groups of signs are defined and used: `LspError`, `LspWarning`, `LspInformation`, `LspHint`. It is possible to set custom text or icon that will be used for each sign (note that icons are only available in GUI). To do this, set some of the following globals: `g:lsp_signs_error`, `g:lsp_signs_warning`, `g:lsp_signs_information`, `g:lsp_signs_hint`. They should be set to a dict, that contains either text that will be used as sign in terminal, or icon that will be used for GUI, or both. For example:
-
-```viml
-let g:lsp_signs_error = {'text': '✗'}
-let g:lsp_signs_warning = {'text': '‼', 'icon': '/path/to/some/icon'} " icons require GUI
-let g:lsp_signs_hint = {'icon': '/path/to/some/other/icon'} " icons require GUI
-```
-
-Also two highlight groups for every sign group are defined (for example for LspError these are LspErrorText and LspErrorLine). By default, LspError text is highlighted using Error group, LspWarning is highlighted as Todo, others use Normal group. Line highlighting is not set by default. If your colorscheme of choise does not provide any of these, it is possible to clear them or link to some other group, like so:
-
-```viml
-highlight link LspErrorText GruvboxRedSign " requires gruvbox
-highlight clear LspWarningLine
-```
-
-#### Highlights
-
-Highlighting diagnostics requires either NeoVim 0.3+ or Vim with patch 8.1.0579.
-They are enabled by default when supported, but can be turned off respectively by
-
-```viml
-let g:lsp_highlights_enabled = 0
-let g:lsp_textprop_enabled = 0
-```
-
-Can be customized by setting or linking `LspErrorHighlight`, `LspWarningHighlight`,
-`LspInformationHighlight` and `LspHintHighlight` highlight groups.
-
-#### Virtual text
-
-In NeoVim 0.3 or newer you can use virtual text feature (enabled by default).
+Highlight references to the symbol under the cursor (enabled by default).
 You can disable it by adding
 
 ```viml
-let g:lsp_virtual_text_enabled = 0
+let g:lsp_document_highlight_enabled = 0
 ```
 
-To your configuration.
-
-Virtual text will use the same highlight groups as signs feature.
-
-### Highlight references
-
-Highlight references to the symbol under the cursor. To enable, set in your
-configuration:
-
-```viml
-let g:lsp_highlight_references_enabled = 1
-```
+to your configuration.
 
 To change the style of the highlighting, you can set or link the `lspReference`
 highlight group, e.g.:
@@ -206,3 +183,59 @@ let g:lsp_log_file = expand('~/vim-lsp.log')
 " for asyncomplete.vim log
 let g:asyncomplete_log_file = expand('~/asyncomplete.log')
 ```
+
+## Tests
+
+[vim-themis](https://github.com/thinca/vim-themis) is used for testing. To run
+integration tests [gopls](https://github.com/golang/tools/tree/master/gopls)
+executable must be in path.
+
+## Maintainers
+
+- [Prabir Shrestha](https://github.com/prabirshrestha) (author, maintainer)
+- [mattn](https://github.com/mattn) (maintainer)
+- [hrsh7th](https://github.com/hrsh7th) (maintainer)
+- [Thomas Faingnaert](https://github.com/thomasfaingnaert) (maintainer)
+- [rhysd](https://github.com/rhysd) (maintainer)
+
+## Backers
+
+Support us with a monthly donation and help us continue our activities. [[Become a backer](https://opencollective.com/vim-lsp#backer)]
+
+<a href="https://opencollective.com/vim-lsp/backer/0/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/0/avatar.svg"></a>
+<a href="https://opencollective.com/vim-lsp/backer/1/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/1/avatar.svg"></a>
+<a href="https://opencollective.com/vim-lsp/backer/2/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/2/avatar.svg"></a>
+<a href="https://opencollective.com/vim-lsp/backer/3/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/3/avatar.svg"></a>
+<a href="https://opencollective.com/vim-lsp/backer/4/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/4/avatar.svg"></a>
+ <a href="https://opencollective.com/vim-lsp/backer/5/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/5/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/backer/6/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/6/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/backer/7/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/7/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/backer/8/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/8/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/backer/9/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/9/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/backer/10/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/10/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/backer/11/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/11/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/backer/12/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/12/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/backer/13/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/13/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/backer/14/website" target="_blank"><img src="https://opencollective.com/vim-lsp/backer/14/avatar.svg"></a>
+
+
+## Sponsors
+
+Become a sponsor and get your logo on our README on GitHub with a link to your site. [[Become a sponsor](https://opencollective.com/vim-lsp#sponsor)]
+
+<a href="https://opencollective.com/vim-lsp/sponsor/0/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/0/avatar.svg"></a>
+<a href="https://opencollective.com/vim-lsp/sponsor/1/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/1/avatar.svg"></a>
+<a href="https://opencollective.com/vim-lsp/sponsor/2/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/2/avatar.svg"></a>
+<a href="https://opencollective.com/vim-lsp/sponsor/3/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/3/avatar.svg"></a>
+<a href="https://opencollective.com/vim-lsp/sponsor/4/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/4/avatar.svg"></a>
+ <a href="https://opencollective.com/vim-lsp/sponsor/5/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/5/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/sponsor/6/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/6/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/sponsor/7/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/7/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/sponsor/8/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/8/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/sponsor/9/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/9/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/sponsor/10/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/10/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/sponsor/11/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/11/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/sponsor/12/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/12/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/sponsor/13/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/13/avatar.svg"></a>
+  <a href="https://opencollective.com/vim-lsp/sponsor/14/website" target="_blank"><img src="https://opencollective.com/vim-lsp/sponsor/14/avatar.svg"></a>
+
