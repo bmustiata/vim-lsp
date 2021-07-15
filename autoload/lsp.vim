@@ -925,8 +925,8 @@ function! lsp#get_allowed_servers(...) abort
             endfor
         endif
 
-        if has_key(l:server_info, 'whitelistre')
-            for l:filetype in l:server_info['whitelistre']
+        if has_key(l:server_info, 'allowlistre')
+            for l:filetype in l:server_info['allowlistre']
                 " If this is a regex expression, we allow it
                 if l:buffer_filetype =~ l:filetype
                     let l:active_servers += [l:server_name]
