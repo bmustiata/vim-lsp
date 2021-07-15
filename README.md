@@ -20,7 +20,7 @@ use vim compiled with lua or neovim v0.4.0+
 ```viml
 if executable('pyls')
     " pip install python-language-server
-    " use whitelistre for regular expressions
+    " use allowlistre for regular expressions
     au User lsp_setup call lsp#register_server({
         \ 'name': 'pyls',
         \ 'cmd': {server_info->['pyls']},
